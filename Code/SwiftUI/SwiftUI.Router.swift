@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 public protocol RouterProtocol<Route>: ObservableObject {
     associatedtype Route

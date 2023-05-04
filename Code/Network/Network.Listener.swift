@@ -16,9 +16,9 @@ public extension Black.Network {
 
         public private(set) var inner: NWListener
 
-        public var state: AnyPublisher<NWListener.State, Never> { stateSubject.eraseToAnyPublisher() }
+        public var state: AnyNewValuePublisher<NWListener.State, Never> { stateSubject.eraseToAnyNewValuePublisher() }
         public var connection: AnyPublisher<NWConnection, Never> { connectionSubject.eraseToAnyPublisher() }
-        private let stateSubject = PassthroughSubject<NWListener.State, Never>()
+        private let stateSubject = KeepValueSubject<NWListener.State, Never>(.setup)
         private let connectionSubject = PassthroughSubject<NWConnection, Never>()
 
         public init(_ inner: NWListener) {

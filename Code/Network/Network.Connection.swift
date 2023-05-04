@@ -21,7 +21,10 @@ public extension Black.Network {
         }
 
         public var state: AnyNewValuePublisher<NWConnection.State, Never> { stateSubject.eraseToAnyNewValuePublisher() }
-        private let stateSubject = NewValueSubject<NWConnection.State, Never>(.setup)
+        private let stateSubject = KeepValueSubject<NWConnection.State, Never>(.setup)
+
+        public var path: AnyNewValuePublisher<NWPath?, Never> { pathSubject.eraseToAnyNewValuePublisher() }
+        private let pathSubject = KeepValueSubject<NWPath?, Never>(nil)
 
         public var data: AnyPublisher<DataInContext, Error> { dataSubject.eraseToAnyPublisher() }
         private let dataSubject = PassthroughSubject<DataInContext, Error>()
@@ -35,6 +38,7 @@ public extension Black.Network {
         public init(connection: NWConnection) {
             self.connection = connection
             subscribeForStatus()
+            subscribeForPath()
         }
 
         var reconnecting: Bool {
@@ -46,7 +50,7 @@ public extension Black.Network {
             }
         }
 
-        public func start() async throws {
+        public func start(_ queue: DispatchQueue = .global()) async throws {
             var disposable: AnyCancellable?
 
             listenForData()
@@ -68,11 +72,12 @@ public extension Black.Network {
                     }
                 }
 
-                connection.start(queue: .global())
+                connection.start(queue: queue)
             }
         }
 
         public func stop() async {
+            guard !isFinished else { return }
             var disposable: AnyCancellable?
 
             self.isFinished = true
@@ -115,37 +120,27 @@ public extension Black.Network {
         }
 
         public func read() async throws -> DataInContext {
-            var cancellables = [AnyCancellable]()
-
-            let result: DataInContext = try await withCheckedThrowingContinuation { continuation in
-                data.sink { completion in
-                    if case let .failure(error) = completion {
-                        continuation.resume(throwing: error)
-                    }
-                    else {
-                        continuation.resume(throwing: ConnectionError.cancelled)
-                    }
-                    cancellables.cancel()
-                } receiveValue: { data in
-                        cancellables.cancel()
-                        continuation.resume(returning: data)
+            try await withThrowingTaskGroupContinuation(of: DataInContext.self) { continuation, group in
+                group.addTask {
+                    try await self.data.async(ConnectionError.cancelled)
                 }
-                .store(in: &cancellables)
 
-                state.sink { state in
-                    if state != .ready {
-                        cancellables.cancel()
-                        continuation.resume(throwing: ConnectionError.cancelled)
-                    }
+                group.addTask {
+                    _ = await self.state.filter { $0 != .ready }.eraseToAnyPublisher().async()
+                    throw ConnectionError.cancelled
                 }
-                .store(in: &cancellables)
 
-                if !receivingData {
-                    listenForData()
+                if !self.receivingData {
+                    self.listenForData()
+                }
+
+                if let result = await group.nextResult() {
+                    continuation.resume(with: result)
+                }
+                else {
+                    continuation.resume(throwing: ConnectionError.cancelled)
                 }
             }
-
-            return result
         }
 
         private func listenForData() {
@@ -198,5 +193,10 @@ public extension Black.Network {
             }
         }
 
+        private func subscribeForPath() {
+            self.connection.pathUpdateHandler = { [weak self] newPath in
+                self?.pathSubject.send(newPath)
+            }
+        }
     }
 }

@@ -79,23 +79,21 @@ extension AnyNewValuePublisher {
 }
 
 
-public class NewValueSubject<Output, Failure> : Subject where Failure : Error {
-
+public class KeepValueSubject<Output, Failure> : Subject where Failure : Error {
+    public private(set) var value: Output
     public private(set) var newValue: Output
     private var inner: CurrentValueSubject<Output, Failure>
 
     public init(_ value: Output) {
-        newValue = value
-        inner = .init(value)
-    }
-
-    public var value: Output {
-        inner.value
+        self.value = value
+        self.newValue = value
+        self.inner = .init(value)
     }
 
     public func send(_ value: Output) {
-        newValue = value
+        self.newValue = value
         inner.send(value)
+        self.value = value
     }
 
     public func send(completion: Subscribers.Completion<Failure>) {
@@ -112,10 +110,10 @@ public class NewValueSubject<Output, Failure> : Subject where Failure : Error {
 }
 
 
-extension NewValueSubject: NewValuePublisher {}
+extension KeepValueSubject: NewValuePublisher {}
 
-extension Publisher where Self: NewValuePublisher {
-    public func eraseToAnyNewValuePublisher() -> AnyNewValuePublisher<Output, Failure> {
+public extension Publisher where Self: NewValuePublisher {
+    func eraseToAnyNewValuePublisher() -> AnyNewValuePublisher<Output, Failure> {
         AnyNewValuePublisher(self)
     }
 }

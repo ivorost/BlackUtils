@@ -20,6 +20,13 @@ extension NWConnection.State {
         @unknown default: return "-unknown-"
         }
     }
+
+    public var finished: Bool {
+        switch self {
+        case .cancelled, .failed(_): return true
+        default: return false
+        }
+    }
 }
 
 

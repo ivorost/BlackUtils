@@ -78,31 +78,6 @@ public extension CMSampleBuffer {
     }
 }
 
-public func CMTimeSetSeconds(_ time: inout CMTime, _ seconds: Float64) {
-    time.value = CMTimeValue(seconds * Float64(time.timescale))
-}
-
-
-public extension CMTimeScale {
-    static let prefferedVideoTimescale: CMTimeScale = 600
-}
-
-public extension CMTimeValue {
-    static let prefferedVideoTimescale: CMTimeValue = CMTimeValue(CMTimeScale.prefferedVideoTimescale)
-}
-
-
-public extension CMTime {
-    
-    static func video(value: CMTimeValue) -> CMTime {
-        return CMTime(value: value, timescale: .prefferedVideoTimescale)
-    }
-
-    static func video(fps: CMTimeValue) -> CMTime {
-        return CMTime(value: .prefferedVideoTimescale / fps, timescale: .prefferedVideoTimescale)
-    }
-}
-
 #if canImport(AppKit)
 private extension NSImage {
     convenience init(ciImage: CIImage) {

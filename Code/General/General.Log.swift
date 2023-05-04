@@ -101,3 +101,14 @@ public func tryLog<T>(_ block: () throws -> T) -> T? {
 
     return nil
 }
+
+public func tryLog<T>(_ block: () async throws -> T) async -> T? {
+    do {
+        return try await block()
+    }
+    catch {
+        logError(error)
+    }
+
+    return nil
+}

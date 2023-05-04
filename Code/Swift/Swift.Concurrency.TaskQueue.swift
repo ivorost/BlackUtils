@@ -64,6 +64,24 @@ public class TaskQueue {
         }
     }
 
+    public func group(_ prepare: @escaping (inout TaskGroup<Void>) -> Void) {
+        task {
+            await withTaskGroup(of: Void.self) { group in
+                prepare(&group)
+                await group.reduce(()) { _, _ in () }
+            }
+        }
+    }
+
+    public func throwingGroup(_ prepare: @escaping (inout ThrowingTaskGroup<Void, Error>) -> Void) async throws {
+        try await task {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                prepare(&group)
+                try await group.reduce(()) { _, _ in () }
+            }
+        }
+    }
+
     public func task<T>(operation: @escaping @Sendable () async -> T) async -> T {
         try! await actor.enqueue {
             await operation()

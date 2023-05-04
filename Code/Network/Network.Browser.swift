@@ -10,17 +10,7 @@ import Combine
 
 public extension Black.Network {
     final class Browser {
-        public struct Update {
-            public let peers: Set<NWBrowser.Result>
-            public let changes: Set<NWBrowser.Result.Change>
-        }
-        
-        enum BrowserError : Error {
-            case cancelled
-        }
-
         public private(set) var inner: NWBrowser
-
         public var state: AnyPublisher<NWBrowser.State, Never> { stateSubject.eraseToAnyPublisher() }
         public var update: AnyPublisher<Update, Never> { updateSubject.eraseToAnyPublisher() }
         private let stateSubject = PassthroughSubject<NWBrowser.State, Never>()
@@ -36,21 +26,30 @@ public extension Black.Network {
             inner.start(queue: queue)
         }
 
-
         private func _stop() {
             inner.cancel()
         }
-                
+
         private func state(changed to: NWBrowser.State) {
-            self.stateSubject.send(to)
+            stateSubject.send(to)
         }
-        
+
         private func update(changed to: Set<NWBrowser.Result>, changes: Set<NWBrowser.Result.Change>) {
-            self.updateSubject.send(Update(peers: to, changes: changes))
+            updateSubject.send(Update(peers: to, changes: changes))
         }
     }
 }
 
+extension Black.Network.Browser {
+    public struct Update {
+        public let peers: Set<NWBrowser.Result>
+        public let changes: Set<NWBrowser.Result.Change>
+    }
+
+    enum BrowserError : Error {
+        case cancelled
+    }
+}
 
 extension Black.Network.Browser : Black.Network.SessionProtocol {
     public var queue: DispatchQueue? {
@@ -95,10 +94,7 @@ extension Black.Network.Browser : Black.Network.SessionProtocol {
         await withCheckedContinuation { continuation in
             disposable = state.sink { newValue in
                 switch newValue {
-                case .cancelled:
-                    disposable?.cancel()
-                    continuation.resume()
-                case .failed(_):
+                case .cancelled, .failed(_):
                     disposable?.cancel()
                     continuation.resume()
                 default:
